@@ -17,6 +17,8 @@ type User struct {
 
 var users []User
 
+var maxID uint64
+
 // Esta funcion es para inicializar valores, en este caso nuestro arreglo de usuarios
 func init() {
 	users = []User{
@@ -39,6 +41,7 @@ func init() {
 			Email:    "mateo@gmail.com",
 		},
 	}
+	maxID = 3
 }
 
 func main() {
@@ -57,8 +60,16 @@ func UserServer(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		GetAllUsers(w)
 	case http.MethodPost:
-		fmt.Fprintf(w, "Hello POST, %q", html.EscapeString(r.URL.Path))
+		decode := json.NewDecoder(r.Body)
+		var user User
+		err := decode.Decode(&user)
 
+		if err != nil {
+			MsgResponse(w, http.StatusBadRequest, err.Error())
+			return
+
+		}
+		PostUser(w, user)
 	default:
 		fmt.Fprintf(w, "NOT FOUND, %q", html.EscapeString(r.URL.Path))
 
@@ -70,9 +81,30 @@ func GetAllUsers(w http.ResponseWriter) {
 	DataResponse(w, http.StatusOK, users)
 }
 
+func PostUser(w http.ResponseWriter, data interface{}) {
+	//casteamos al data que viene como interface a User
+	user := data.(User)
+
+	maxID++
+	user.ID = int(maxID)
+	users = append(users, user)
+
+	DataResponse(w, http.StatusCreated, user)
+
+}
+func MsgResponse(w http.ResponseWriter, status int, message string) {
+	w.WriteHeader(status)
+	fmt.Fprintf(w, `{"status" : %d, "msg": %s}`, status, message)
+}
+
 func DataResponse(w http.ResponseWriter, status int, users interface{}) {
 	//Marshal me trata de convertir una entidad a un json
-	value, _ := json.Marshal(users)
+	value, err := json.Marshal(users)
+	if err != nil {
+		MsgResponse(w, http.StatusBadRequest, err.Error())
+		return
+
+	}
 	w.WriteHeader(status)
 	fmt.Fprintf(w, `{"status" : %d, "data": %s}`, status, value)
 }
