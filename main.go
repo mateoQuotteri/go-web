@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"html"
 	"log"
 	"net/http"
 )
@@ -52,6 +51,7 @@ func main() {
 			fmt.Fprintf(w, "Hello, %q", html.EscapeString(r.URL.Path))
 		})
 	*/
+	fmt.Println("Server is running on port 8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
@@ -71,8 +71,7 @@ func UserServer(w http.ResponseWriter, r *http.Request) {
 		}
 		PostUser(w, user)
 	default:
-		fmt.Fprintf(w, "NOT FOUND, %q", html.EscapeString(r.URL.Path))
-
+		InvalidMethod(w)
 	}
 }
 
@@ -85,6 +84,19 @@ func PostUser(w http.ResponseWriter, data interface{}) {
 	//casteamos al data que viene como interface a User
 	user := data.(User)
 
+	if user.First == "" {
+		MsgResponse(w, http.StatusBadRequest, "First name is required")
+		return
+	}
+	if user.LastName == "" {
+		MsgResponse(w, http.StatusBadRequest, "LastName is required")
+		return
+	}
+	if user.Email == "" {
+		MsgResponse(w, http.StatusBadRequest, "Email is required")
+		return
+	}
+
 	maxID++
 	user.ID = int(maxID)
 	users = append(users, user)
@@ -92,6 +104,14 @@ func PostUser(w http.ResponseWriter, data interface{}) {
 	DataResponse(w, http.StatusCreated, user)
 
 }
+
+func InvalidMethod(w http.ResponseWriter) {
+
+	status := http.StatusNotFound
+	w.WriteHeader(status)
+	fmt.Fprintf(w, "NOT FOUND, %q")
+}
+
 func MsgResponse(w http.ResponseWriter, status int, message string) {
 	w.WriteHeader(status)
 	fmt.Fprintf(w, `{"status" : %d, "msg": %s}`, status, message)
